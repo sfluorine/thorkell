@@ -33,7 +33,7 @@ static void pop_stack_qword(VM* vm, uint8_t dst) {
 }
 
 static void push_stack_immediate(VM* vm, const uint8_t* operand, uint8_t len) {
-    if (vm->rsp >= STACK_MAX) {
+    if (vm->rsp + len >= STACK_MAX) {
         fprintf(stderr, "ERROR: stackoverflow\n");
         exit(-1);
     }
@@ -41,11 +41,16 @@ static void push_stack_immediate(VM* vm, const uint8_t* operand, uint8_t len) {
     for (uint8_t i = 0; i < len; i++)
         STACK(i) = operand[i];
 
+    while (len < sizeof(uint64_t)) {
+        STACK(len) = 0x00;
+        len += 1;
+    }
+
     vm->rsp += len;
 }
 
 static void push_stack_register(VM* vm, const uint8_t* registers, uint8_t len) {
-    if (vm->rsp >= STACK_MAX) {
+    if (vm->rsp + len >= STACK_MAX) {
         fprintf(stderr, "ERROR: stackoverflow\n");
         exit(-1);
     }
@@ -65,6 +70,83 @@ static void move_immediate(VM* vm, uint8_t dst, const uint8_t* operand, uint8_t 
         bytes[i] = operand[i];
 }
 
+static void set_flags(VM* vm, uint64_t lhs, uint64_t rhs) {
+    FEQ   = lhs == rhs;
+    FNEQ  = lhs != rhs;
+    FGT   = lhs >  rhs;
+    FLT   = lhs <  rhs;
+    FGTEQ = lhs >= rhs;
+    FLTEQ = lhs <= rhs;
+}
+
+/* compares register with immediate. */
+static void compare_immediate(VM* vm, uint8_t lhs, const uint8_t* operand, uint8_t len) {
+    uint64_t rhs = 0;
+    uint8_t* bytes = (uint8_t*)&rhs;
+
+    for (uint8_t i = 0; i < len; i++)
+        bytes[i] = operand[i];
+
+    set_flags(vm, REG(lhs), rhs);
+}
+
+/* compares register with another register. */
+static void compare_register(VM* vm, uint8_t lhs, uint8_t rhs) {
+    set_flags(vm, REG(lhs), REG(rhs));
+}
+
+static void arithmetic_op_immediate(VM* vm, uint8_t dst, const uint8_t* operand, uint8_t len, uint8_t op) {
+    uint64_t rhs = 0;
+    uint8_t* bytes = (uint8_t*)&rhs;
+
+    for (uint8_t i = 0; i < len; i++)
+        bytes[i] = operand[i];
+
+    switch (op) {
+    case '+':
+        REG(dst) += rhs;
+        break;
+    case '-':
+        REG(dst) -= rhs;
+        break;
+    case '*':
+        REG(dst) *= rhs;
+        break;
+    case '/':
+        REG(dst) /= rhs;
+        break;
+    default:
+        break;
+    }
+}
+
+static void arithmetic_op_register(VM* vm, uint8_t dst, const uint8_t* registers, uint8_t len, uint8_t op) {
+    switch (op) {
+    case '+':
+        for (uint8_t i = 0; i < len; i++)
+            REG(dst) += REG(registers[i]);
+
+        break;
+    case '-':
+        for (uint8_t i = 0; i < len; i++)
+            REG(dst) -= REG(registers[i]);
+
+        break;
+    case '*':
+        for (uint8_t i = 0; i < len; i++)
+            REG(dst) *= REG(registers[i]);
+
+        break;
+    case '/':
+        for (uint8_t i = 0; i < len; i++)
+            REG(dst) /= REG(registers[i]);
+
+        break;
+    default:
+        break;
+    }
+}
+
 static void evaluate(VM* vm) {
     const uint8_t ins_len = FETCH(0);
     const uint8_t op_code = FETCH(1);
@@ -73,6 +155,38 @@ static void evaluate(VM* vm) {
     case INS_HALT:
         vm->rip += 1;
         return;
+
+    case INS_IADD:
+        arithmetic_op_immediate(vm, FETCH(2), &FETCH(3), ins_len - 3, '+');
+        break;
+
+    case INS_ISUB:
+        arithmetic_op_immediate(vm, FETCH(2), &FETCH(3), ins_len - 3, '-');
+        break;
+
+    case INS_IMUL:
+        arithmetic_op_immediate(vm, FETCH(2), &FETCH(3), ins_len - 3, '*');
+        break;
+
+    case INS_IDIV:
+        arithmetic_op_immediate(vm, FETCH(2), &FETCH(3), ins_len - 3, '/');
+        break;
+
+    case INS_ADD:
+        arithmetic_op_register(vm, FETCH(2), &FETCH(3), ins_len - 3, '+');
+        break;
+
+    case INS_SUB:
+        arithmetic_op_register(vm, FETCH(2), &FETCH(3), ins_len - 3, '-');
+        break;
+
+    case INS_MUL:
+        arithmetic_op_register(vm, FETCH(2), &FETCH(3), ins_len - 3, '*');
+        break;
+
+    case INS_DIV:
+        arithmetic_op_register(vm, FETCH(2), &FETCH(3), ins_len - 3, '/');
+        break;
 
     case INS_IPUSH:
         push_stack_immediate(vm, &FETCH(2), ins_len - 2);
@@ -94,10 +208,66 @@ static void evaluate(VM* vm) {
         REG(FETCH(2)) = REG(FETCH(3));
         break;
 
+    case INS_ICMP:
+        compare_immediate(vm, FETCH(2), &FETCH(3), ins_len - 3);
+        break;
+
+    case INS_CMP:
+        compare_register(vm, FETCH(2), FETCH(3));
+        break;
+
     case INS_JMP:
         vm->rip = FETCH(2);
         return;
 
+    case INS_JE:
+        if (FEQ) {
+            vm->rip = FETCH(2);
+            return;
+        }
+
+        break;
+
+    case INS_JNE:
+        if (FNEQ) {
+            vm->rip = FETCH(2);
+            return;
+        }
+
+        break;
+
+    case INS_JG:
+        if (FGT) {
+            vm->rip = FETCH(2);
+            return;
+        }
+
+        break;
+
+    case INS_JL:
+        if (FLT) {
+            vm->rip = FETCH(2);
+            return;
+        }
+
+        break;
+
+    case INS_JGE:
+        if (FGTEQ) {
+            vm->rip = FETCH(2);
+            return;
+        }
+
+        break;
+
+    case INS_JLE:
+        if (FLTEQ) {
+            vm->rip = FETCH(2);
+            return;
+        }
+
+        break;
+    
     default:
         fprintf(stderr, "ERROR: unknown opcode: '%2x'\n", op_code);
         exit(-1);
@@ -116,7 +286,8 @@ VM* vm_init(const uint8_t* instructions) {
         return NULL;
 
     VM* vm = malloc(sizeof(VM));
-    memset(vm->registers, 0, REGISTER_MAX);
+    memset(vm->flags, 0, FLAGS_MAX);
+    memset(vm->registers, 0, REGISTER_MAX * sizeof(uint64_t));
 
     vm->instructions = instructions;
     vm->rip = 0;
