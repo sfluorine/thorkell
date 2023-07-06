@@ -33,6 +33,8 @@ typedef enum TokenKind_t {
     TOK_REG_D,
     TOK_COMMA,
     TOK_IMMEDIATE,
+    TOK_LABLE,
+    TOK_IDENTIFIER,
 } TokenKind;
 
 typedef struct Token_t {

@@ -38,8 +38,7 @@ static void skip_comments() {
         while (!is_eof() && *g_input != '\n')
             advance();
 
-        // skip the remaining newline.
-        advance();
+        skip_whitespaces();
     }
 }
 
@@ -124,11 +123,12 @@ Token lexer_get_token() {
         } else if (span_equals(span, span_from("RD"))) {
             return token_init(TOK_REG_D, span, line, col);
         } else {
-            fprintf(stderr, "(%zu:%zu) ERROR: illegal token: ", line, col);
-            span_print(stderr, span);
-            fprintf(stderr, "\n");
+            if (*g_input == ':') {
+                advance();
+                return token_init(TOK_LABLE, span, line, col);
+            }
 
-            exit(1);
+            return token_init(TOK_IDENTIFIER, span, line, col);
         }
     }
 

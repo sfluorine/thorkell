@@ -147,6 +147,16 @@ static void arithmetic_op_register(VM* vm, uint8_t dst, const uint8_t* registers
     }
 }
 
+static void load_rip_immediate(VM* vm, const uint8_t* operand, uint8_t len) {
+    uint64_t new_rip = 0;
+    uint8_t* bytes = (uint8_t*)&new_rip;
+
+    for (uint8_t i = 0; i < len; i++)
+        bytes[i] = operand[i];
+
+    vm->rip = new_rip;
+}
+
 static void evaluate(VM* vm) {
     const uint8_t ins_len = FETCH(0);
     const uint8_t op_code = FETCH(1);
@@ -217,12 +227,12 @@ static void evaluate(VM* vm) {
         break;
 
     case INS_JMP:
-        vm->rip = FETCH(2);
+        load_rip_immediate(vm, &FETCH(2), ins_len - 2);
         return;
 
     case INS_JE:
         if (FEQ) {
-            vm->rip = FETCH(2);
+            load_rip_immediate(vm, &FETCH(2), ins_len - 2);
             return;
         }
 
@@ -230,7 +240,7 @@ static void evaluate(VM* vm) {
 
     case INS_JNE:
         if (FNEQ) {
-            vm->rip = FETCH(2);
+            load_rip_immediate(vm, &FETCH(2), ins_len - 2);
             return;
         }
 
@@ -238,7 +248,7 @@ static void evaluate(VM* vm) {
 
     case INS_JG:
         if (FGT) {
-            vm->rip = FETCH(2);
+            load_rip_immediate(vm, &FETCH(2), ins_len - 2);
             return;
         }
 
@@ -246,7 +256,7 @@ static void evaluate(VM* vm) {
 
     case INS_JL:
         if (FLT) {
-            vm->rip = FETCH(2);
+            load_rip_immediate(vm, &FETCH(2), ins_len - 2);
             return;
         }
 
@@ -254,7 +264,7 @@ static void evaluate(VM* vm) {
 
     case INS_JGE:
         if (FGTEQ) {
-            vm->rip = FETCH(2);
+            load_rip_immediate(vm, &FETCH(2), ins_len - 2);
             return;
         }
 
@@ -262,7 +272,7 @@ static void evaluate(VM* vm) {
 
     case INS_JLE:
         if (FLTEQ) {
-            vm->rip = FETCH(2);
+            load_rip_immediate(vm, &FETCH(2), ins_len - 2);
             return;
         }
 
@@ -281,7 +291,7 @@ void vm_execute(VM* vm) {
         evaluate(vm);
 }
 
-VM* vm_init(const uint8_t* instructions) {
+VM* vm_init(const uint8_t* instructions, uint64_t start_rip) {
     if (!instructions)
         return NULL;
 
@@ -290,7 +300,7 @@ VM* vm_init(const uint8_t* instructions) {
     memset(vm->registers, 0, REGISTER_MAX * sizeof(uint64_t));
 
     vm->instructions = instructions;
-    vm->rip = 0;
+    vm->rip = start_rip;
     vm->rsp = 0;
 
     return vm;

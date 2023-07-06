@@ -19,25 +19,25 @@
 #define FLTEQ vm->flags[5]
 
 typedef enum Instruction_t {
-    INS_HALT,  /* terminate the program. */
-    INS_IADD,  
+    INS_HALT,
+    INS_IADD,
     INS_ISUB,
     INS_IMUL,
     INS_IDIV,
-    INS_ADD,  
+    INS_ADD,
     INS_SUB,
     INS_MUL,
     INS_DIV,
-    INS_IPUSH, /* push immediate values to the stack. */
-    INS_PUSH,  /* push values from register to the stack. */
-    INS_POP,   /* pop value from the stack to reister. */
-    INS_IMOVE, /* copy value from immediate to register. */
-    INS_MOVE,  /* copy value from register to another register. */
-    INS_ICMP,  /* compare register with an immediate value. */
-    INS_CMP,   /* compare register with another register. */
-    INS_JMP,   /* unconditional jump. */
-    INS_JE,    /* jump if equal. */
-    INS_JNE,    /* jump if not equal. */
+    INS_IPUSH,
+    INS_PUSH,
+    INS_POP,
+    INS_IMOVE,
+    INS_MOVE,
+    INS_ICMP,
+    INS_CMP,
+    INS_JMP,
+    INS_JE,
+    INS_JNE,
     INS_JG,
     INS_JL,
     INS_JGE,
@@ -54,7 +54,7 @@ typedef struct VM_t {
 } VM;
 
 void vm_execute(VM* vm);
-VM* vm_init(const uint8_t* instructions);
+VM* vm_init(const uint8_t* instructions, uint64_t start_rip);
 void vm_deinit(VM* vm);
 
 #endif /* VM_H */

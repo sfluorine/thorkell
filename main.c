@@ -19,12 +19,16 @@ static cvector_vector_type(uint8_t) parsed_instructions_codegen(cvector_vector_t
 }
 
 int main(void) {
-    parser_init("add RA, 34 add RB, 35 add RC, RA, RB, RA, RB, RA, RB, RA, RB, RA, RB, RC halt");
+    parser_init("; this program is computing the factorial of 10\nfactorial: move RA, 1 move RB, 10 loop: mul RA, RB sub RB, 1 cmp RB, 0 jg loop halt start: jmp factorial");
 
-    cvector_vector_type(ParsedInstruction) parsed_instructions = parser_start();
+    uint64_t start_rip = 0;
+    cvector_vector_type(ParsedInstruction) parsed_instructions = parser_start(&start_rip);
+
+    parser_deinit();
+
     cvector_vector_type(uint8_t) instructions = parsed_instructions_codegen(parsed_instructions);
 
-    VM* vm = vm_init(instructions);
+    VM* vm = vm_init(instructions, start_rip);
     vm_execute(vm);
 
     for (uint8_t i = 0; i < REGISTER_MAX; i++)

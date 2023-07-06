@@ -1,8 +1,9 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "vm.h"
 #include "cvector.h"
+#include "vm.h"
+#include "lexer.h"
 
 typedef struct ParsedInstruction_t {
     Instruction instruction;
@@ -14,6 +15,7 @@ ParsedInstruction parsed_instruction_init(Instruction instruction, cvector_vecto
 void parsed_instruction_deinit(ParsedInstruction parsed_instruction);
 
 int parser_init(const char* input);
-cvector_vector_type(ParsedInstruction) parser_start();
+void parser_deinit();
+cvector_vector_type(ParsedInstruction) parser_start(uint64_t* start_rip);
 
 #endif /* PARSER_H */
